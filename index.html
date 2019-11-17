@@ -118,7 +118,7 @@ function generate() {
   var varType = maxValue < 256 ? 'uint8_t' : maxValue < 65535 ? 'uint16_t' : 'uint32_t';
   
   var snippet = (
-`// Gamma brightness lookup table <http://vitim.us>
+`// Gamma brightness lookup table <https://victornpb.github.io/gamma-table-generator>
 // gamma = ${gamma.toFixed(2)} steps = ${steps} range = 0-${maxValue}
 const ${varType} ${varName}[${steps}] = {
   ${lookupTable.map((x,i)=>String(x).padStart(4, ' ') + ((i+1)%16===0?',\n  ' :',') ).join('')}};`);
