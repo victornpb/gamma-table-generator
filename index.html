@@ -1,6 +1,6 @@
-
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta http-equiv="content-type" content="text/html; charset=UTF-8">
   <title>Gamma lookup table generator</title>
@@ -10,6 +10,14 @@
   <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
   <script type="text/javascript" src="//code.jquery.com/jquery-2.0.2.js"></script>
   <script type="text/javascript" src="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/js/bootstrap.min.js"></script>
+
+  <script src="https://code.highcharts.com/highcharts.js"></script>
+  <script src="https://code.highcharts.com/modules/series-label.js"></script>
+  <script src="https://code.highcharts.com/modules/exporting.js"></script>
+  <script src="https://code.highcharts.com/modules/export-data.js"></script>
+
+
+
 
   <style type="text/css">
     .panel-heading a:after {
@@ -28,119 +36,217 @@
     }
   </style>
 </head>
+
 <body>
-    <div class="container">
-  <h2>Gamma lookup table generator</h2>
-  <br>
-  <form class="form-horizontal">
+  <div class="container">
+    <h2>Gamma lookup table generator</h2>
+    <br>
+    <form class="form-horizontal">
 
-    <div class="form-group">
-      <label for="gamma" class="col-sm-2 control-label">Gamma</label>
-      <div class="col-sm-10">
-        <input id="gamma" type="text" class="form-control" placeholder="" value="2.0">
-        <div>
-          Gamma correction value (recommend between 1.5 - 3.0)
+      <div class="form-group">
+        <label for="gamma" class="col-sm-2 control-label">Gamma</label>
+        <div class="col-sm-10">
+          <input id="gamma" type="text" class="form-control" placeholder="" value="2.0">
+          <div>
+            Gamma correction value (recommend between 1.5 - 3.0)
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="form-group">
-      <label for="steps" class="col-sm-2 control-label">Steps</label>
-      <div class="col-sm-10">
-        <input id="steps" type="text" class="form-control" placeholder="" value="256">
-        <div>
-          This will be the size of your array
+      <div class="form-group">
+        <label for="steps" class="col-sm-2 control-label">Steps</label>
+        <div class="col-sm-10">
+          <input id="steps" type="text" class="form-control" placeholder="" value="256">
+          <div>
+            This will be the size of your array
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="form-group">
-      <label for="maxValue" class="col-sm-2 control-label">Max Value</label>
-      <div class="col-sm-10">
-        <input id="maxValue" type="text" class="form-control" placeholder="" value="1023">
-        <div>
-          Maximum PWM value. (8-bit = 255, 10-bit = 1023) 
+      <div class="form-group">
+        <label for="maxValue" class="col-sm-2 control-label">Max Value</label>
+        <div class="col-sm-10">
+          <input id="maxValue" type="text" class="form-control" placeholder="" value="1023">
+          <div>
+            Maximum PWM value. (8-bit = 255, 10-bit = 1023)
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="form-group">
-      <div class="col-sm-offset-2 col-sm-10">
-        <button type="button" class="btn btn-default" onclick="generate()"> Generate </button>
+      <div class="form-group">
+        <div class="col-sm-offset-2 col-sm-10">
+          <button type="button" class="btn btn-default" onclick="generate()"> Generate </button>
+        </div>
       </div>
-    </div>
 
-  </form>
+    </form>
 
-  <hr>
-  <br>
-  <h4>C++ Snippet</h4>
+    <hr>
 
-  <pre id="output" class="well">
+    <div id="chart"></div>
+    <br>
+    <h4>C++ Snippet</h4>
+
+    <pre id="output" class="well">
     <div class="text-muted text-center small">
         Click generate
     </div>
 </pre>
 
-</div>
+  </div>
 
-<footer>
-  <div class="footer text-center text-muted small"><a href="http://vitim.us" target="_blank">Vitim.us</a> 2019-11-17</div>
-</footer>
-
-
-<script type="text/javascript">
-
-window.onload = function() {
-
-  gamma.oninput = steps.oninput = maxValue.oninput = generate;
-  //generate();
-}
-
-function generateGammaTable(gamma, steps, resolution) {
-  var arr = new Array(steps).fill(0)
-    .map((x, i) => Math.pow(i, gamma))
-  arr = arr.map(x => x / Math.max(...arr))
-    .map(x => Math.min(resolution, Math.round(x * resolution)));
-  return arr;
-}
+  <footer>
+    <div class="footer text-center text-muted small"><a href="http://vitim.us" target="_blank">Vitim.us</a> 2019-11-17
+    </div>
+  </footer>
 
 
-function generate() {
+  <script type="text/javascript">
 
-  	var gamma = parseFloat(document.querySelector('#gamma').value);
-    var steps = parseFloat(document.querySelector('#steps').value);
-    var maxValue = parseFloat(document.querySelector('#maxValue').value);
-    
-	var lookupTable = generateGammaTable(gamma, steps, maxValue);
-  
-  var varName = 'gamma_table';
-  var varType = maxValue < 256 ? 'uint8_t' : maxValue < 65535 ? 'uint16_t' : 'uint32_t';
-  
-  var snippet = (
-`// Gamma brightness lookup table <https://victornpb.github.io/gamma-table-generator>
+    window.onload = function () {
+
+      gamma.oninput = steps.oninput = maxValue.oninput = generate;
+      //generate();
+    }
+
+    function generateGammaTable(gamma, steps, resolution) {
+      var arr = new Array(steps).fill(0)
+        .map((x, i) => Math.pow(i, gamma))
+      arr = arr.map(x => x / Math.max(...arr))
+        .map(x => Math.min(resolution, Math.round(x * resolution)));
+      return arr;
+    }
+
+
+    function generate() {
+
+      var gamma = parseFloat(document.querySelector('#gamma').value);
+      var steps = parseFloat(document.querySelector('#steps').value);
+      var maxValue = parseFloat(document.querySelector('#maxValue').value);
+
+      var lookupTable = generateGammaTable(gamma, steps, maxValue);
+
+      var varName = 'gamma_lut';
+      var varType = maxValue < 256 ? 'uint8_t' : maxValue < 65535 ? 'uint16_t' : 'uint32_t';
+
+      var snippet = (
+        `// Gamma brightness lookup table <https://victornpb.github.io/gamma-table-generator>
 // gamma = ${gamma.toFixed(2)} steps = ${steps} range = 0-${maxValue}
 const ${varType} ${varName}[${steps}] = {
-  ${lookupTable.map((x,i)=>String(x).padStart(4, ' ') + ((i+1)%16===0?',\n  ' :',') ).join('')}};`);
+  ${lookupTable.map((x, i) => String(x).padStart(4, ' ') + ((i + 1) % 16 === 0 ? ',\n  ' : ',')).join('')}};`);
 
-  output.innerText = snippet;
-  //copy(output);
-}
+      output.innerText = snippet;
+      //copy(output);
+
+      plotChart(gamma, steps, maxValue, lookupTable);
+    }
 
 
-function copy(element) {
-  var selection = window.getSelection();
-  var range = document.createRange();
-  range.setStartBefore(element.firstChild);
-  range.setEndAfter(element.lastChild);
-  selection.removeAllRanges();
-  selection.addRange(range);
-  try {
-    var successful = document.execCommand('copy');
-    var msg = successful ? 'successful' : 'unsuccessful';
-  } catch (err) {}
-}
+    function copy(element) {
+      var selection = window.getSelection();
+      var range = document.createRange();
+      range.setStartBefore(element.firstChild);
+      range.setEndAfter(element.lastChild);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      try {
+        var successful = document.execCommand('copy');
+        var msg = successful ? 'successful' : 'unsuccessful';
+      } catch (err) { }
+    }
 
-</script>
+
+    function plotChart(gamma, steps, maxValue, lookupTable) {
+      Highcharts.chart('chart', {
+        chart: {
+          type: 'line',
+          // scrollablePlotArea: {
+          //   minWidth: 600,
+          //   scrollPositionX: 1
+          // },
+          height: 500,
+          // width: 600,
+        },
+        title: {
+          text: 'Gamma curve'
+        },
+        subtitle: {
+          text: `gamma = ${gamma.toFixed(2)} steps = ${steps} range = 0-${maxValue}`
+        },
+        plotOptions: {
+          line: {
+            lineWidth: 1,
+            // states: {
+            //     hover: {
+            //         lineWidth: 1
+            //     }
+            // },
+            marker: {
+              enabled: false
+            },
+          }
+        },
+
+        yAxis: {
+          title: {
+            enabled: true,
+            text: 'Corrected value',
+          },
+          type: "linear",
+          tickLength: 2,
+          tickInterval: 2,
+          ceiling: maxValue,
+          softMax: maxValue,
+          min: 0,
+          // startOnTick: true,
+        },
+        xAxis: {
+          title: {
+            enabled: true,
+            text: 'Input Value',
+          },
+          tickLength: 2,
+          tickInterval: 2,
+          softMax: steps,
+        },
+        tooltip: {
+          shared: true,
+        },
+
+        series: [
+          {
+            name: 'Linear',
+            type: "line",
+            step: "left",
+            data: lookupTable.map((y, i) => i * (maxValue / steps)),
+            color: '#cccccc'
+          },
+          {
+            name: `Gamma ${gamma}`,
+            type: "line",
+            step: "left",
+            data: lookupTable,
+            color: '#000088'
+          },
+        ],
+
+        responsive: {
+          rules: [{
+            condition: {
+              maxWidth: 500
+            },
+            chartOptions: {
+              legend: {
+                layout: 'horizontal',
+                align: 'center',
+                verticalAlign: 'bottom'
+              }
+            }
+          }]
+        }
+      });
+    }
+  </script>
 </body>
+
 </html>
